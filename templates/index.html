@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Chatbot</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        header .max-w-4xl {
+            padding-left: 1rem;   /* Match the padding of the chat container */
+            margin-left: 0;       /* Remove any auto margins */
+            padding-right: 1rem;
+        }
+
+        /* Main container styles */
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: flex;
+            height: calc(100vh - 100px); /* Adjust based on header height */
+        }
+        
+        /* Panel containers */
+        .column {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        /* Chat panel container with fixed height */
+        .chat-panel-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Settings panel with dynamic height */
+        .settings-panel {
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out;
+            border-bottom: 1px solid transparent;
+            padding: 0;
+        }
+        
+        .settings-panel.open {
+            max-height: 300px;
+            opacity: 1;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        /* Chat messages container that adapts height */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        /* Input area stays at bottom */
+        .input-area {
+            border-top: 1px solid #e5e7eb;
+            padding: 1rem;
+            background: white;
+        }
+        
+        /* Docs container height matches chat container */
+        .docs-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+        
+        .docs-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        /* Accordion styles */
+        .accordion-header {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid transparent;
+        }
+
+        .accordion-header:hover {
+            background-color: #f3f4f6;
+        }
+
+        .accordion-content {
+            max-height: 0;
+            padding: 0;
+            font-size: 0;
+            overflow: hidden;
+            border-top: 0;
+            transition: 
+                max-height 0.3s ease-out, 
+                padding 0.3s ease-out,
+                font-size 0s linear 0s;
+            line-height: 0;
+        }
+
+        .accordion-content.open {
+            max-height: 800px;
+            padding: 1rem;
+            font-size: inherit;
+            line-height: normal;
+            border-top: 1px solid #e5e7eb;
+            transition: 
+                max-height 0.3s ease-out, 
+                padding 0.3s ease-out,
+                font-size 0s linear 0s;
+        }
+
+        .toggle-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-icon.open {
+            transform: rotate(180deg);
+        }
+        
+        /* Typing indicator */
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #777;
+            border-radius: 50%;
+            margin-right: 3px;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        
+        .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-5px); }
+        }
+
+        /* Dark mode variables and base styles */
+        :root {
+            --bg-color: #f3f4f6;
+            --panel-bg: #ffffff;
+            --text-color: #111827;
+            --border-color: #e5e7eb;
+            --highlight-bg: #f9fafb;
+            --input-bg: #ffffff;
+            --blue-color: #3b82f6;
+            --blue-hover: #2563eb;
+            --user-bubble: #3b82f6;
+            --user-text: #ffffff;
+            --bot-bubble: #e5e7eb;
+            --bot-text: #111827;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .dark {
+            --bg-color: #1f2937;
+            --panel-bg: #111827;
+            --text-color:rgb(223, 223, 223);
+            --border-color: #374151;
+            --highlight-bg: #2d3748;
+            --input-bg: #1f2937;
+            --blue-color: #3b82f6;
+            --blue-hover: #60a5fa;
+            --user-bubble: #3b82f6;
+            --user-text:rgb(255, 255, 255);
+            --bot-bubble: #374151;
+            --bot-text: #f9fafb;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Apply variables to elements */
+        body {
+            background-color: var(--bg-color) !important;
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .chat-panel-container,
+        .docs-container {
+            background-color: var(--panel-bg);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            box-shadow: 0 1px 3px 0 var(--shadow-color);
+        }
+
+        .settings-panel {
+            background-color: var(--panel-bg);
+            border-color: var(--border-color);
+        }
+
+        .input-area,
+        .chat-messages,
+        .docs-content {
+            border-color: var(--border-color);
+        }
+
+        .input-area {
+            background-color: var(--panel-bg);
+        }
+
+        .accordion-header, 
+        div.accordion-header {
+            background-color: var(--accordion-bg) !important;
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .bg-gray-100.p-3.rounded.mt-2,
+        .accordion-content .bg-gray-100,
+        div.bg-gray-100.p-3.rounded.mt-2 {
+            background-color: var(--highlight-bg) !important;
+            color: var(--text-color) !important;
+            border-color: var(--border-color) !important;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        input[type="text"],
+        input[type="range"],
+        select {
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .flex > .bg-blue-500 {
+            background-color: var(--user-bubble);
+            color: var(--user-text);
+        }
+
+        .flex > .bg-gray-200 {
+            background-color: var(--bot-bubble);
+            color: var(--bot-text);
+        }
+
+        button.bg-blue-500 {
+            background-color: var(--blue-color);
+        }
+
+        button.bg-blue-500:hover {
+            background-color: var(--blue-hover);
+        }
+
+        .bg-gray-100 {
+            background-color: var(--highlight-bg);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-md p-4 mb-4 transition-colors duration-200">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Neural Chatbot with Seq2Seq Architectures</h1>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="main-container">
+        <!-- Left Column - Chat Interface -->
+        <div class="column w-3/5 pr-4">
+            <!-- Settings Toggle Button -->
+            <div class="mb-4 flex justify-end">
+                <button id="settingsToggle" class="mt-3 px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm font-medium">
+                    Settings
+                </button>
+            </div>
+            
+            
+            <!-- Chat Panel Container with Settings and Chat -->
+            <div class="chat-panel-container">
+                <!-- Settings Panel -->
+                <div id="settingsPanel" class="settings-panel">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Model Selection -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                            <select id="modelType" class="w-full p-2 border border-gray-300 rounded">
+                                <option value="baseline" selected>Baseline Seq2Seq</option>
+                                <option value="attention">Seq2Seq with Attention</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Decoding Method -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Decoding Method</label>
+                            <select id="decodeMethod" class="w-full p-2 border border-gray-300 rounded">
+                                <option value="greedy">Greedy Search</option>
+                                <option value="top-p" selected>Top-p Sampling</option>
+                                <option value="beam">Beam Search</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Temperature (for top-p) -->
+                        <div id="tempContainer">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Temperature: <span id="tempValue">0.9</span>
+                            </label>
+                            <input type="range" id="temperature" min="0.1" max="2" step="0.1" value="0.9" 
+                                   class="w-full">
+                        </div>
+                        
+                        <!-- Top-p value -->
+                        <div id="topPContainer">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Top-p: <span id="topPValue">0.9</span>
+                            </label>
+                            <input type="range" id="topP" min="0.1" max="1" step="0.1" value="0.9" 
+                                   class="w-full">
+                        </div>
+                        
+                        <!-- Beam Size -->
+                        <div id="beamContainer" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Beam Size: <span id="beamValue">5</span>
+                            </label>
+                            <input type="range" id="beamSize" min="2" max="10" step="1" value="5" 
+                                   class="w-full">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Messages Container -->
+                <div id="chatMessages" class="chat-messages">
+                    <!-- Bot welcome message -->
+                    <div class="flex mb-4">
+                        <div class="bg-gray-200 rounded-lg p-3 max-w-xs md:max-w-md">
+                            <p>Welcome to Michael Tang's Neural Chatbot! I'm trained on movie dialog data. Try saying something to start a conversation.</p>
+                        </div>
+                    </div>
+                    <!-- Messages will be added here by JavaScript -->
+                </div>
+                
+                <!-- Input Area -->
+                <div class="input-area">
+                    <form id="messageForm" class="flex">
+                        <input type="text" id="messageInput" placeholder="Type a message..." 
+                               class="flex-1 p-2 border border-gray-300 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <button type="submit" class="bg-blue-500 text-white p-2 rounded-r hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            Send
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column - Documentation -->
+        <div class="column w-2/5">
+            <div class="docs-container">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Documentation</h2>
+                    <div class="flex items-center space-x-2">
+                        <button id="darkModeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <!-- Sun icon (shown in dark mode) -->
+                            <svg id="lightIcon" class="w-5 h-5 text-gray-800 dark:text-yellow-300 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                            <!-- Moon icon (shown in light mode) -->
+                            <svg id="darkIcon" class="w-5 h-5 text-gray-600 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="docs-content">
+                    <!-- Accordion Sections -->
+                    <div class="border rounded mb-2 overflow-hidden">
+                        <div class="accordion-header flex justify-between items-center p-3 bg-gray-50">
+                            <h3 class="font-medium">Overview</h3>
+                            <svg class="toggle-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                        <div class="accordion-content">
+                            <p class="mb-2">
+                                This chatbot is built using neural sequence-to-sequence (Seq2Seq) models trained on movie dialogue data. 
+                                It can generate responses to your messages using different decoding strategies.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="border rounded mb-2 overflow-hidden">
+                        <div class="accordion-header flex justify-between items-center p-3 bg-gray-50">
+                            <h3 class="font-medium">Dataset</h3>
+                            <svg class="toggle-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                        <div class="accordion-content">
+                            <p class="mb-2">
+                                The chatbot is trained on the <strong>Cornell Movie Dialog Corpus</strong>, which contains conversations 
+                                extracted from movie scripts. The dataset includes over 220,000 conversational exchanges between more 
+                                than 10,000 pairs of movie characters.
+                            </p>
+                            <p class="mb-2">
+                                For this implementation, we're using a filtered subset of single-turn conversations 
+                                (one message and one response) with at least 10 tokens each to ensure meaningful exchanges.
+                            </p>
+                            <div class="bg-gray-100 p-3 rounded mt-2">
+                                <h4 class="font-medium mb-1">Dataset Limitations</h4>
+                                <ul class="list-disc pl-5 text-sm">
+                                    <li><strong>Scripted dialogue</strong>: Contains scripted, often dramatic movie dialogue (not representative of natural conversation)</li>
+                                    <li><strong>Limited size</strong>: Relatively small dataset (approximately 220K exchanges)</li>
+                                    <li><strong>Dated language</strong>: Language patterns may appear outdated</li>
+                                    <li><strong>Lack of context</strong>: Single-turn exchanges lack conversational context</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="border rounded mb-2 overflow-hidden">
+                        <div class="accordion-header flex justify-between items-center p-3 bg-gray-50">
+                            <h3 class="font-medium">Model Architecture</h3>
+                            <svg class="toggle-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                        <div class="accordion-content">
+                            <p class="mb-2">
+                                The system uses two main neural network architectures:
+                            </p>
+                            <ul class="list-disc pl-6 mb-2">
+                                <li><strong>Baseline Seq2Seq Model:</strong> A basic encoder-decoder architecture that encodes the input message and generates a response.</li>
+                                <li><strong>Seq2Seq with Attention:</strong> An enhanced model that uses an attention mechanism to focus on relevant parts of the input when generating each word of the response.</li>
+                            </ul>
+                            <p class="mb-2">
+                                Both models use GRU (Gated Recurrent Unit) neural networks and shared word embeddings between the encoder and decoder.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="border rounded mb-2 overflow-hidden">
+                        <div class="accordion-header flex justify-between items-center p-3 bg-gray-50">
+                            <h3 class="font-medium">Decoding Methods</h3>
+                            <svg class="toggle-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                        <div class="accordion-content">
+                            <p class="mb-2">
+                                The interface offers three different ways to generate responses:
+                            </p>
+                            <div class="mb-3">
+                                <h4 class="font-medium">Greedy Search</h4>
+                                <p class="text-sm">
+                                    At each step, the model selects the most probable next word. 
+                                    This produces consistent but sometimes repetitive responses.
+                                </p>
+                            </div>
+                            <div class="mb-3">
+                                <h4 class="font-medium">Top-p Sampling (Nucleus Sampling)</h4>
+                                <p class="text-sm mb-1">
+                                    The model randomly samples from the most probable words that together reach a cumulative probability of p. 
+                                    This creates more diverse and natural-sounding responses.
+                                </p>
+                                <ul class="list-disc pl-5 text-sm">
+                                    <li><strong>Temperature</strong> controls randomness - higher values (>1) increase diversity, lower values (&lt;1) make responses more focused.</li>
+                                    <li><strong>Top-p</strong> value controls how much of the probability distribution to consider - lower values focus on only the most likely words.</li>
+                                </ul>
+                            </div>
+                            <div class="mb-3">
+                                <h4 class="font-medium">Beam Search</h4>
+                                <p class="text-sm mb-1">
+                                    The model keeps track of the k most probable sequences at each step. 
+                                    This creates more globally coherent responses by considering multiple possibilities in parallel.
+                                </p>
+                                <ul class="list-disc pl-5 text-sm">
+                                    <li><strong>Beam Size</strong> controls how many candidate sequences are maintained - larger values explore more possibilities.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="border rounded mb-2 overflow-hidden">
+                        <div class="accordion-header flex justify-between items-center p-3 bg-gray-50">
+                            <h3 class="font-medium">Key Technical Terms</h3>
+                            <svg class="toggle-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                        <div class="accordion-content">
+                            <ul class="space-y-2">
+                                <li>
+                                    <strong>Seq2Seq (Sequence-to-Sequence):</strong> A neural network architecture that converts one sequence (like a question) 
+                                    into another sequence (like an answer).
+                                </li>
+                                <li>
+                                    <strong>Attention Mechanism:</strong> Allows the model to focus on different parts of the input when generating each 
+                                    word of the output, similar to how humans pay attention to specific words in a conversation.
+                                </li>
+                                <li>
+                                    <strong>GRU (Gated Recurrent Unit):</strong> A type of neural network designed to process sequences and remember 
+                                    information over time.
+                                </li>
+                                <li>
+                                    <strong>Embedding:</strong> A technique that converts words into dense vectors of numbers that capture semantic meaning.
+                                </li>
+                                <li>
+                                    <strong>Bidirectional Encoder:</strong> Processes the input sequence in both forward and backward directions to capture more context.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM element references
+        const messageForm = document.getElementById('messageForm');
+        const messageInput = document.getElementById('messageInput');
+        const chatMessages = document.getElementById('chatMessages');
+        const modelType = document.getElementById('modelType');
+        const decodeMethod = document.getElementById('decodeMethod');
+        const temperature = document.getElementById('temperature');
+        const tempValue = document.getElementById('tempValue');
+        const topP = document.getElementById('topP');
+        const topPValue = document.getElementById('topPValue');
+        const beamSize = document.getElementById('beamSize');
+        const beamValue = document.getElementById('beamValue');
+        const settingsToggle = document.getElementById('settingsToggle');
+        const settingsPanel = document.getElementById('settingsPanel');
+        
+        // Parameter containers
+        const tempContainer = document.getElementById('tempContainer');
+        const topPContainer = document.getElementById('topPContainer');
+        const beamContainer = document.getElementById('beamContainer');
+        
+        // Accordion elements
+        const accordionHeaders = document.querySelectorAll('.accordion-header');
+        
+        // Initialize first accordion section as open
+        const firstAccordionContent = document.querySelector('.accordion-content');
+        const firstToggleIcon = document.querySelector('.toggle-icon');
+        if (firstAccordionContent && firstToggleIcon) {
+            firstAccordionContent.classList.add('open');
+            firstToggleIcon.classList.add('open');
+        }
+
+        // Dark mode functionality
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        
+        // Function to set theme based on preference
+        function setTheme(isDark) {
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+        
+        // Initialize theme from stored preference
+        function initializeTheme() {
+            // Check for saved theme preference or use system preference
+            const savedTheme = localStorage.getItem('theme');
+            
+            if (savedTheme === 'dark') {
+                setTheme(true);
+            } else if (savedTheme === 'light') {
+                setTheme(false);
+            } else {
+                // If no saved preference, use system preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                setTheme(prefersDark);
+            }
+        }
+        
+        // Toggle dark mode
+        darkModeToggle.addEventListener('click', function() {
+            const isDark = document.documentElement.classList.contains('dark');
+            setTheme(!isDark);
+        });
+        
+        // Initialize theme
+        initializeTheme();
+        
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            if (!localStorage.getItem('theme')) {
+                setTheme(e.matches);
+            }
+        });
+        
+        // Session Management
+        let sessionId = null;
+        
+        function initializeSession() {
+            fetch('/api/start-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                sessionId = data.session_id;
+                console.log("Session initialized:", sessionId);
+            })
+            .catch(error => {
+                console.error('Error initializing session:', error);
+            });
+        }
+        
+        // Helper Functions
+        
+        // Calculate a natural typing delay based on message length
+        function calculateTypingDelay(message) {
+            const charactersPerSecond = 10;
+            const messageLength = message.length;
+            const thinkingTime = 500;
+            const typingTime = (messageLength / charactersPerSecond) * 1000;
+            const maxTime = 1000;
+            
+            return Math.min(Math.max(thinkingTime + typingTime, 1500), maxTime);
+        }
+        
+        // Add message to chat
+        function addMessage(text, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex mb-4 ' + (isUser ? 'justify-end' : '');
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = isUser 
+                ? 'bg-blue-500 text-white rounded-lg p-3 max-w-xs md:max-w-md'
+                : 'bg-gray-200 rounded-lg p-3 max-w-xs md:max-w-md';
+            
+            bubbleDiv.textContent = text;
+            messageDiv.appendChild(bubbleDiv);
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Add typing indicator
+        function addTypingIndicator() {
+            const indicatorDiv = document.createElement('div');
+            indicatorDiv.className = 'flex mb-4 typing-indicator-container';
+            indicatorDiv.id = 'typingIndicator';
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'bg-gray-200 rounded-lg p-3';
+            
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator';
+            indicator.innerHTML = '<span></span><span></span><span></span>';
+            
+            bubbleDiv.appendChild(indicator);
+            indicatorDiv.appendChild(bubbleDiv);
+            chatMessages.appendChild(indicatorDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Remove typing indicator
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+        
+        // Input validation function
+        function validateInput(message, settings) {
+            const errors = [];
+            
+            // Message validation
+            if (!message || message.trim() === '') {
+                errors.push("Message cannot be empty");
+                return errors;
+            }
+            
+            if (message.length > 500) {
+                errors.push("Message is too long (maximum 500 characters)");
+            }
+            
+            // Settings validation
+            if (settings.decode_method === 'top-p') {
+                const temp = parseFloat(settings.temperature);
+                if (isNaN(temp) || temp < 0.1 || temp > 2) {
+                    errors.push("Temperature must be between 0.1 and 2");
+                }
+                
+                const topP = parseFloat(settings.top_p);
+                if (isNaN(topP) || topP < 0.1 || topP > 1) {
+                    errors.push("Top-p must be between 0.1 and 1");
+                }
+            } else if (settings.decode_method === 'beam') {
+                const beamSize = parseInt(settings.beam_size);
+                if (isNaN(beamSize) || beamSize < 2 || beamSize > 10) {
+                    errors.push("Beam size must be between 2 and 10");
+                }
+            }
+            
+            return errors;
+        }
+        
+        // Sanitize input to prevent XSS
+        function sanitizeInput(input) {
+            return input
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/&/g, "&amp;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#x27;");
+        }
+        
+        // Settings panel toggle
+        settingsToggle.addEventListener('click', function() {
+            settingsPanel.classList.toggle('open');
+        });
+        
+        // Update value displays
+        temperature.addEventListener('input', function() {
+            tempValue.textContent = this.value;
+        });
+        
+        topP.addEventListener('input', function() {
+            topPValue.textContent = this.value;
+        });
+        
+        beamSize.addEventListener('input', function() {
+            beamValue.textContent = this.value;
+        });
+        
+        // Show/hide parameter containers based on decode method
+        decodeMethod.addEventListener('change', function() {
+            tempContainer.classList.add('hidden');
+            topPContainer.classList.add('hidden');
+            beamContainer.classList.add('hidden');
+            
+            if (this.value === 'top-p') {
+                tempContainer.classList.remove('hidden');
+                topPContainer.classList.remove('hidden');
+            } else if (this.value === 'beam') {
+                beamContainer.classList.remove('hidden');
+            }
+        });
+        
+        // Accordion functionality
+        accordionHeaders.forEach(header => {
+            header.addEventListener('click', function() {
+                const content = this.nextElementSibling;
+                const icon = this.querySelector('.toggle-icon');
+                
+                content.classList.toggle('open');
+                icon.classList.toggle('open');
+            });
+        });
+        
+        // Handle message submission
+        messageForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Clear input immediately
+            messageInput.value = '';
+            
+            // Prepare ONLY the basic settings first
+            const settings = {
+                message: sanitizeInput(message),
+                model_type: modelType.value,
+                decode_method: decodeMethod.value,
+                session_id: sessionId
+            };
+            
+            // Then add ONLY the parameters relevant to the selected decode method
+            if (settings.decode_method === 'top-p') {
+                // Only add temperature and top-p for top-p sampling
+                settings.temperature = parseFloat(temperature.value);
+                settings.top_p = parseFloat(topP.value);
+            } 
+            else if (settings.decode_method === 'beam') {
+                // Only add beam size for beam search
+                settings.beam_size = parseInt(beamSize.value);
+                // Explicitly NOT including temperature or top_p
+            }
+            // No additional parameters for greedy search
+            
+            // Validate input
+            const validationErrors = validateInput(message, settings);
+            if (validationErrors.length > 0) {
+                addMessage(`Error: ${validationErrors.join('. ')}`, false);
+                return;
+            }
+            
+            // Add user message to chat
+            addMessage(message, true);
+            
+            // Show typing indicator
+            addTypingIndicator();
+            
+            let apiResponse = null;
+            let apiError = null;
+            
+            // Start API request (we'll handle the timing separately)
+            const fetchPromise = fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: sanitizeInput(message),
+                    ...settings
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Something went wrong');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                apiResponse = data;
+                if (data.session_id) {
+                    sessionId = data.session_id;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                apiError = error.message;
+            });
+            
+            try {
+                // While the API is processing, we'll calculate how long the typing indicator should show
+                const minTypingTime = 1500; // Minimum typing time in milliseconds
+                
+                // Start timing
+                const startTime = new Date().getTime();
+                
+                // Wait for API response
+                await fetchPromise;
+                
+                // Calculate elapsed time
+                const elapsedTime = new Date().getTime() - startTime;
+                
+                // Calculate natural typing time based on response length
+                let typingTime = minTypingTime;
+                if (apiResponse && apiResponse.response) {
+                    typingTime = calculateTypingDelay(apiResponse.response);
+                }
+                
+                // If API was faster than our typing time, wait the remaining time
+                const remainingTime = typingTime - elapsedTime;
+                if (remainingTime > 0) {
+                    await new Promise(resolve => setTimeout(resolve, remainingTime));
+                }
+                
+                // Remove typing indicator
+                removeTypingIndicator();
+                
+                // Display the response or error
+                if (apiError) {
+                    addMessage(`Error: ${apiError}`, false);
+                } else if (apiResponse) {
+                    addMessage(apiResponse.response, false);
+                } else {
+                    addMessage('Sorry, something went wrong. Please try again.', false);
+                }
+            } catch (error) {
+                // Remove typing indicator
+                removeTypingIndicator();
+                console.error('Network error:', error);
+                addMessage('Network error. Please check your connection and try again.', false);
+            }
+        });
+        
+        // Initialization
+        initializeSession();
+        
+        // Show Top-p controls by default since that's our default method
+        tempContainer.classList.remove('hidden');
+        topPContainer.classList.remove('hidden');
+        beamContainer.classList.add('hidden');
+    });
+    </script>
+</body>
+</html>
