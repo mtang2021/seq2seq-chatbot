@@ -7,9 +7,10 @@ This project provides a web interface for interacting with neural sequence-to-se
 ```
 neural-chatbot/
 ├── models/                  # Trained model files
-│   └── attention_model.pt   # Saved attention model
-│   └── baseline_model.pt    # Saved baseline model
+│   └── attention_model.pt   
+│   └── baseline_model.pt    
 ├── static/                  # Static web assets
+│   └── styles.css           # CSS stylesheet
 ├── templates/               # HTML templates
 │   └── index.html           # Main application template
 ├── app.py                   # Flask application for serving the UI
