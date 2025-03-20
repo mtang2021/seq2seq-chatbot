@@ -1,6 +1,8 @@
 # Neural Chatbot Web Interface
 
-This project provides a web interface for interacting with neural sequence-to-sequence chatbot models developed as part of the CS4650 Natural Language Processing course. The chatbot is trained on movie dialog data and can generate responses using different decoding strategies.
+ The web interface provides an intuitive way to test and experiment with different model configurations and decoding strategies, allowing users to understand the strengths and limitations of each approach.
+
+![Chatbot Interface](static/example.png)
 
 ## Project Structure
 
