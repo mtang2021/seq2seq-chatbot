@@ -7,7 +7,7 @@
 ## Project Structure
 
 ```
-neural-chatbot/
+seq2seq-chatbot/
 ├── models/                  # Trained model files
 │   └── attention_model.pt   
 │   └── baseline_model.pt    
