@@ -9,12 +9,12 @@
 ```
 seq2seq-chatbot/
 ├── models/                  # Trained model files
-│   └── attention_model.pt   
+│   ├── attention_model.pt   
 │   └── baseline_model.pt    
 ├── static/                  # Static web assets
+│   ├── chat.js              # JS chat interface
+│   ├── example.png          # README example
 │   └── styles.css           # CSS stylesheet
-│   └── chat.js              # JS chat interface
-│   └── example.png          # README example
 ├── templates/               # HTML templates
 │   └── index.html           # Main application template
 ├── app.py                   # Flask application for serving the UI
