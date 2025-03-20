@@ -13,6 +13,8 @@ neural-chatbot/
 │   └── baseline_model.pt    
 ├── static/                  # Static web assets
 │   └── styles.css           # CSS stylesheet
+│   └── chat.js              # JS chat interface
+│   └── example.png          # README example
 ├── templates/               # HTML templates
 │   └── index.html           # Main application template
 ├── app.py                   # Flask application for serving the UI
